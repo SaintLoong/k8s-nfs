@@ -1,0 +1,39 @@
+- hosts: all
+  become: yes
+  tasks:
+
+  - name: Creater Master
+    command: kubeadm init --pod-network-cidr=10.244.0.0/24
+    when: inventory_hostname in groups['node-k8s-master']
+
+  - name: Apply     
+    shell: | 
+      mkdir -p $HOME/.kube
+      sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+      sudo chown $(id -u):$(id -g) $HOME/.kube/config
+    when: inventory_hostname in groups['node-k8s-master']
+
+  - name: configure Network Master
+    shell: kubectl apply -f https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 | tr -d '\n')
+    when: inventory_hostname in groups['node-k8s-master'] 
+
+  - name: Get Join
+    command: kubeadm token create --print-join-command
+    register: output
+    when: inventory_hostname in groups['node-k8s-master']
+
+  - name: Copy Join
+    local_action:  copy content="{{ output.stdout }}"  dest=join_get
+    when: inventory_hostname in groups['node-k8s-master']
+
+  - name:  Autocompletion
+    shell: source /usr/share/bash-completion/bash_completion
+    when: inventory_hostname in groups['node-k8s-master']
+  
+  - name: Put Join
+    local_action: shell cat join_get
+    register: put_join
+    when: inventory_hostname in groups['node-k8s-workers']
+    
+  - command: "{{ put_join.stdout }}"    
+    when: inventory_hostname in groups['node-k8s-workers']

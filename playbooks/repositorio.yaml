@@ -1,0 +1,32 @@
+---
+- hosts: all
+
+  tasks:   
+    - name: Add repo docker
+      get_url:
+        url: https://download.docker.com/linux/centos/docker-ce.repo
+        dest: /etc/yum.repos.d/docker-ce.repo
+        mode: 0644
+      
+    - name: Creater repo Kubernetes
+      file:
+       path: /etc/yum.repos.d/kubernetes.repo
+       state: touch
+
+    - name: Adding repository details in Kubernetes repo file.
+      blockinfile:
+       path: /etc/yum.repos.d/kubernetes.repo
+       block: |
+          [kubernetes]
+          name=Kubernetes
+          baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+          enabled=1
+          gpgcheck=1
+          repo_gpgcheck=1
+          gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+      become: yes
+          
+    - name: "Update"
+      yum:
+        name: '*'
+        state: present

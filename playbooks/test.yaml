@@ -1,0 +1,12 @@
+---
+- name: A simple template
+  hosts: all
+  become: yes
+  tasks:
+
+    - set_fact:
+        x: kubectl get node | grep master
+      when: The connection to the server localhost:8080 was refused - did you specify the right host or port? is not defined
+    - debug:
+        var: x
+      when: x is not defined

@@ -1,0 +1,63 @@
+---
+- name: setup K8S
+  hosts: all
+  become: yes
+  user: root
+
+  tasks:
+
+    - name: "Update all packages"
+      yum:
+        name: 
+          - docker 
+          - kubelet
+          - kubeadm
+          - kubectl
+        state: present
+        update_cache: true
+     
+
+    - name: Creater directory docker
+      file:
+        path: /etc/docker
+        state: directory
+        mode: 0755
+     
+
+    - name: Creater touch docker
+      file:
+        path: /etc/docker/daemon.json
+        state: touch
+        mode: 0755
+     
+
+    - name: Adding repository details in Kubernetes repo file.
+      blockinfile:
+       path: /etc/docker/daemon.json
+       block: |
+        {
+          "exec-opts": ["native.cgroupdriver=systemd"],
+          "log-driver": "json-file",
+          "log-opts": {
+            "max-size": "100m"
+          },
+          "storage-driver": "overlay2",
+          "storage-opts": [
+            "overlay2.override_kernel_check=true"
+          ]
+        }
+     
+
+    - name: "Start services Docker"
+      service:
+        name: docker
+        state: started
+        enabled: yes
+     
+
+    - name: "Start services kubelet"
+      service:
+        name: kubelet
+        state: started
+        enabled: yes
+     

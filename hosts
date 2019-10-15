@@ -1,0 +1,7 @@
+[node-k8s-master]
+k8s-master ansible_host=172.25.0.145
+
+[node-k8s-workers]
+k8s-worked01 ansible_host=172.25.0.146
+k8s-worked02 ansible_host=172.25.0.147
+

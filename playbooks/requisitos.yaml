@@ -1,0 +1,95 @@
+---
+- name: Requisitos K8s
+  hosts: all
+  become: yes
+
+  tasks:
+
+  - name: lineinfile SELINUX disabled
+    lineinfile:
+      path: /etc/selinux/config
+      regexp: '^SELINUX='
+      line: 'SELINUX=disabled'
+   
+  - name: update all packages
+    yum:
+      name: '*'
+      state: latest
+
+  - name: install network tools, ntp
+    yum:
+      name: 
+        - net-tools
+        - ntp
+        - bash-completion
+   
+  - name: check ntpd service is running
+    command: systemctl status ntpd
+    register: result
+    ignore_errors: True
+   
+    
+  - name: configure and sync ntp
+    command: "{{item}}"
+    with_items:
+      - chkconfig ntpd on
+      - ntpdate pool.ntp.org
+      - swapoff -a
+      - echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables
+    when: result is failed   
+
+  - name: start service ntp, if not running
+    service:
+      name: ntpd
+      state: started
+
+  - name: turn off firewall for install
+    command: systemctl disable firewalld
+
+  - replace:
+      path: /etc/fstab 
+      regexp: '^/dev/mapper/centos-swap\s*swap\s*swap\s*defaults\s*[0-9]\s*[0-9]$'
+      replace: '# /dev/mapper/centos-swap swap                    swap    defaults        0 0' 
+
+  - name: Creater repo Kubernetes
+    file:
+      path: /etc/sysctl.d/k8s.conf
+      state: touch
+      mode: u=rw,g=r,o=r
+
+  - name: Adding repository details in Kubernetes repo file.
+    blockinfile:
+      path: /etc/sysctl.d/k8s.conf
+      block: |
+        net.bridge.bridge-nf-call-ip6tables = 1
+        net.bridge.bridge-nf-call-iptables = 1  
+        
+  - lineinfile:
+      path: /etc/sysconfig/network
+      state: present
+      line: 'HOSTNAME={{inventory_hostname}}.local'
+   
+  - lineinfile:
+      path: /etc/hosts
+      state: present
+      line: '{{ansible_default_ipv4.address}}   {{inventory_hostname}}.local   {{inventory_hostname}}'
+   
+  - name: Change the hostname to our standard
+    command: hostnamectl set-hostname "{{ inventory_hostname }}"
+   
+  - name: Add IP address of all hosts to all hosts
+    lineinfile:
+      dest: /etc/hosts
+      regexp: '.*{{ item }}$'
+      line: "{{ hostvars[item].ansible_host }} {{item}}"
+      state: present
+    when: hostvars[item].ansible_host is defined
+    with_items: "{{ groups.all }}"
+   
+  - name: restart server
+    command: /sbin/shutdown -r +1
+    async: 0
+    poll: 0
+    ignore_errors: true
+   
+
